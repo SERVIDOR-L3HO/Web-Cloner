@@ -164,14 +164,37 @@ router.post("/inspect", async (req, res) => {
     const textContent = $("body").text().replace(/\s+/g, " ").trim();
     const wordCount = textContent ? textContent.split(/\s+/).length : 0;
 
+    // Decode HTML entities in a URL string (&amp; → &, etc.)
+    function decodeHtmlEntities(str: string): string {
+      return str
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))
+        .replace(/&#([0-9]+);/g, (_, d) => String.fromCharCode(parseInt(d, 10)));
+    }
+
     const iframeSrcs: string[] = [];
+    // Track decoded versions to prevent &amp; vs & duplicates
+    const iframeDecoded = new Set<string>();
+
+    function addIframeSrc(raw: string) {
+      const decoded = decodeHtmlEntities(raw.replace(/[,"'\\]+$/, "").trim());
+      if (decoded && !iframeDecoded.has(decoded)) {
+        iframeDecoded.add(decoded);
+        iframeSrcs.push(decoded);
+      }
+    }
+
     $("iframe[src]").each((_, el) => {
       const src = $(el).attr("src");
-      if (src) iframeSrcs.push(resolveUrl(finalUrl, src));
+      if (src) addIframeSrc(resolveUrl(finalUrl, src));
     });
     $("iframe[data-src]").each((_, el) => {
       const src = $(el).attr("data-src");
-      if (src) iframeSrcs.push(resolveUrl(finalUrl, src));
+      if (src) addIframeSrc(resolveUrl(finalUrl, src));
     });
 
     // Extract video/embed URLs from inline scripts and __NEXT_DATA__ JSON
@@ -181,13 +204,16 @@ router.post("/inspect", async (req, res) => {
     const knownVideoHosts = /youtube|vimeo|dood|streamtape|filemoon|vidmoly|streamwish|uqload|ok\.ru|dailymotion|kwik|mp4upload|sibnet|mixdrop|fembed|emturbovid|vidhide|voe\.sx|upstream|speedvid|gdriveplayer|vidapi/i;
 
     function extractEmbedUrls(text: string, onlyKnown = false): string[] {
+      // Decode HTML entities in the text first so &amp; URLs are found correctly
+      const decoded = decodeHtmlEntities(text);
       const found: string[] = [];
       const pat = new RegExp(embedUrlPattern.source, "gi");
       let m: RegExpExecArray | null;
-      while ((m = pat.exec(text)) !== null) {
+      while ((m = pat.exec(decoded)) !== null) {
         const url = m[0].replace(/[,"'\\]+$/, "");
         if (!onlyKnown || knownVideoHosts.test(url)) {
-          if (!iframeSrcs.includes(url) && !found.includes(url)) found.push(url);
+          const urlDecoded = decodeHtmlEntities(url);
+          if (!iframeDecoded.has(urlDecoded) && !found.includes(urlDecoded)) found.push(urlDecoded);
         }
       }
       return found;
@@ -197,7 +223,7 @@ router.post("/inspect", async (req, res) => {
     const nextDataEl = $('script#__NEXT_DATA__').html();
     if (nextDataEl) {
       for (const u of extractEmbedUrls(nextDataEl)) {
-        iframeSrcs.push(u);
+        addIframeSrc(u);
       }
     }
 
@@ -223,7 +249,7 @@ router.post("/inspect", async (req, res) => {
             if (ndRes.ok) {
               const ndJson = await ndRes.text();
               for (const u of extractEmbedUrls(ndJson)) {
-                iframeSrcs.push(u);
+                addIframeSrc(u);
               }
             }
           } finally {
@@ -239,18 +265,17 @@ router.post("/inspect", async (req, res) => {
     $("script:not([src])").each((_, el) => {
       const content = $(el).html() || "";
       for (const u of extractEmbedUrls(content, true)) {
-        iframeSrcs.push(u);
+        addIframeSrc(u);
       }
     });
 
     // Also extract src="..." / src='...' from raw HTML (catches JS string literals with iframe URLs)
+    // Run on decoded HTML to catch &amp; versions as well
+    const htmlDecoded = decodeHtmlEntities(html);
     const srcAttrPattern = /(?:src|iframe)[=:\s]+["']?(https?:\/\/[^\s"'\\<>]{10,}\/(?:embed|player|e|tv|video)\/[^\s"'\\<>]{4,})/gi;
     let srcMatch: RegExpExecArray | null;
-    while ((srcMatch = srcAttrPattern.exec(html)) !== null) {
-      const candidate = srcMatch[1].replace(/[,"'\\]+$/, "");
-      if (!iframeSrcs.includes(candidate)) {
-        iframeSrcs.push(candidate);
-      }
+    while ((srcMatch = srcAttrPattern.exec(htmlDecoded)) !== null) {
+      addIframeSrc(srcMatch[1]);
     }
 
     // ── API Endpoint Discovery ──────────────────────────────────────────────
@@ -343,8 +368,9 @@ router.post("/inspect", async (req, res) => {
             const body = await r.text();
             ep.responsePreview = body.slice(0, 400);
             for (const u of extractEmbedUrls(body)) {
-              ep.iframeSrcs.push(u);
-              if (!iframeSrcs.includes(u)) iframeSrcs.push(u);
+              const udec = decodeHtmlEntities(u);
+              if (!ep.iframeSrcs.includes(udec)) ep.iframeSrcs.push(udec);
+              addIframeSrc(u);
             }
           }
         } finally {
@@ -399,7 +425,7 @@ router.post("/inspect", async (req, res) => {
                 }
               }
               for (const u of extractEmbedUrls(code, true)) {
-                if (!iframeSrcs.includes(u)) iframeSrcs.push(u);
+                addIframeSrc(u);
               }
             }
           } finally {
