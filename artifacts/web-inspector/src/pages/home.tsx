@@ -6,7 +6,7 @@ import { useInspectUrl, useFetchResource } from "@workspace/api-client-react";
 import {
   Search, Terminal, AlertTriangle, Code, Globe, FileCode2,
   FileJson, Image as ImageIcon, Link as LinkIcon, FormInput,
-  ExternalLink, ShieldCheck, Cpu, ChevronRight,
+  ExternalLink, ShieldCheck, Cpu, ChevronRight, MonitorPlay,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -177,6 +177,7 @@ export default function Home() {
               <TabsList className="w-full justify-start overflow-x-auto rounded-none bg-transparent border-b border-border/40 p-0 h-auto flex-nowrap">
                 {[
                   { value: "tech", label: `techs (${results.technologies.length})` },
+                  { value: "iframes", label: `iframes (${results.iframeSrcs?.length ?? 0})` },
                   { value: "html", label: "html" },
                   { value: "headers", label: `headers (${results.responseHeaders.length})` },
                   { value: "meta", label: `meta (${results.metaTags.length})` },
@@ -236,6 +237,47 @@ export default function Home() {
                               .map(([cat, names]) => `  "${cat}": [${names.map((n) => `"${n}"`).join(", ")}]`)
                               .join(",\n") +
                             `\n};`}
+                        </CodeBlock>
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* IFRAMES */}
+                <TabsContent value="iframes" className="mt-0 p-4">
+                  <CodeComment text={`// iframes & embedded players detected (${results.iframeSrcs?.length ?? 0}) — includes dynamic sources from scripts`} />
+                  {!results.iframeSrcs || results.iframeSrcs.length === 0 ? (
+                    <EmptyState msg="// no iframes or embedded players found" />
+                  ) : (
+                    <div className="mt-3 space-y-2">
+                      {results.iframeSrcs.map((src, i) => {
+                        let host = "";
+                        try { host = new URL(src).hostname; } catch { host = "unknown"; }
+                        return (
+                          <div key={i} className="flex items-start gap-3 border border-border/30 bg-black/30 p-3 hover:border-primary/30 transition-colors">
+                            <MonitorPlay className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <span className="text-[10px] border border-primary/40 text-primary px-1.5 py-0.5">{`Servidor ${i + 1}`}</span>
+                                <span className="text-[10px] text-muted-foreground border border-border/50 px-1.5 py-0.5">{host}</span>
+                              </div>
+                              <div className="text-[11px] text-green-300/80 break-all leading-relaxed">{src}</div>
+                            </div>
+                            <a
+                              href={src}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="shrink-0 mt-0.5"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <ExternalLink className="w-3 h-3 text-muted-foreground hover:text-primary" />
+                            </a>
+                          </div>
+                        );
+                      })}
+                      <div className="mt-4 pt-3 border-t border-border/20">
+                        <CodeBlock>
+                          {results.iframeSrcs.map((src, i) => `// Servidor ${i + 1}\n<iframe src="${src}" />`).join("\n\n")}
                         </CodeBlock>
                       </div>
                     </div>

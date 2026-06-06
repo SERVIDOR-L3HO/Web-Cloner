@@ -32,5 +32,6 @@ export interface InspectResult {
   cookies: string[];
   wordCount: number;
   byteSize: number;
+  iframeSrcs: string[];
   inspectedAt: string;
 }

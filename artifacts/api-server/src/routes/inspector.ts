@@ -53,9 +53,15 @@ router.post("/inspect", async (req, res) => {
       response = await fetch(targetUrl, {
         signal: controller.signal,
         headers: {
-          "User-Agent": "Mozilla/5.0 (compatible; WebInspector/1.0)",
-          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.5",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+          "Accept-Language": "es-MX,es;q=0.9,en-US;q=0.8,en;q=0.7",
+          "Accept-Encoding": "gzip, deflate, br",
+          "Cache-Control": "no-cache",
+          "Pragma": "no-cache",
+          "Sec-Fetch-Dest": "document",
+          "Sec-Fetch-Mode": "navigate",
+          "Sec-Fetch-Site": "none",
         },
         redirect: "follow",
       });
@@ -168,6 +174,85 @@ router.post("/inspect", async (req, res) => {
       if (src) iframeSrcs.push(resolveUrl(finalUrl, src));
     });
 
+    // Extract video/embed URLs from inline scripts and __NEXT_DATA__ JSON
+    // Many React/Next.js sites load iframes dynamically, so they won't appear
+    // as <iframe> tags in static HTML — but the URLs are in the page data.
+    const embedUrlPattern = /https?:\/\/[^\s"'\\]+\/(?:embed|player|e|tv)\/[^\s"'\\<>]{4,}/gi;
+    const knownVideoHosts = /youtube|vimeo|dood|streamtape|filemoon|vidmoly|streamwish|uqload|ok\.ru|dailymotion|kwik|mp4upload|sibnet|mixdrop|fembed|emturbovid|vidhide|voe\.sx|upstream|speedvid|gdriveplayer|vidapi/i;
+
+    function extractEmbedUrls(text: string, onlyKnown = false): string[] {
+      const found: string[] = [];
+      const pat = new RegExp(embedUrlPattern.source, "gi");
+      let m: RegExpExecArray | null;
+      while ((m = pat.exec(text)) !== null) {
+        const url = m[0].replace(/[,"'\\]+$/, "");
+        if (!onlyKnown || knownVideoHosts.test(url)) {
+          if (!iframeSrcs.includes(url) && !found.includes(url)) found.push(url);
+        }
+      }
+      return found;
+    }
+
+    // Search __NEXT_DATA__ JSON (contains ALL server-side props, all video servers)
+    const nextDataEl = $('script#__NEXT_DATA__').html();
+    if (nextDataEl) {
+      for (const u of extractEmbedUrls(nextDataEl)) {
+        iframeSrcs.push(u);
+      }
+    }
+
+    // Try fetching Next.js data endpoint — this often has ALL video sources pre-loaded
+    if (nextDataEl) {
+      try {
+        const ndParsed = JSON.parse(nextDataEl);
+        const buildId: string | undefined = ndParsed?.buildId;
+        if (buildId) {
+          const parsedTarget = new URL(finalUrl);
+          const dataPath = `/_next/data/${buildId}${parsedTarget.pathname}.json${parsedTarget.search}`;
+          const dataUrl = `${parsedTarget.origin}${dataPath}`;
+          const ndController = new AbortController();
+          const ndTimeout = setTimeout(() => ndController.abort(), 8000);
+          try {
+            const ndRes = await fetch(dataUrl, {
+              signal: ndController.signal,
+              headers: {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                Accept: "application/json",
+              },
+            });
+            if (ndRes.ok) {
+              const ndJson = await ndRes.text();
+              for (const u of extractEmbedUrls(ndJson)) {
+                iframeSrcs.push(u);
+              }
+            }
+          } finally {
+            clearTimeout(ndTimeout);
+          }
+        }
+      } catch {
+        // Non-fatal — Next.js data endpoint is best-effort
+      }
+    }
+
+    // Search all inline scripts for embed URLs from known video hosts
+    $("script:not([src])").each((_, el) => {
+      const content = $(el).html() || "";
+      for (const u of extractEmbedUrls(content, true)) {
+        iframeSrcs.push(u);
+      }
+    });
+
+    // Also extract src="..." / src='...' from raw HTML (catches JS string literals with iframe URLs)
+    const srcAttrPattern = /(?:src|iframe)[=:\s]+["']?(https?:\/\/[^\s"'\\<>]{10,}\/(?:embed|player|e|tv|video)\/[^\s"'\\<>]{4,})/gi;
+    let srcMatch: RegExpExecArray | null;
+    while ((srcMatch = srcAttrPattern.exec(html)) !== null) {
+      const candidate = srcMatch[1].replace(/[,"'\\]+$/, "");
+      if (!iframeSrcs.includes(candidate)) {
+        iframeSrcs.push(candidate);
+      }
+    }
+
     const technologies = detectTechnologies({
       html,
       headers: responseHeaders,
@@ -194,6 +279,7 @@ router.post("/inspect", async (req, res) => {
       cookies: rawCookies,
       wordCount,
       byteSize,
+      iframeSrcs,
       inspectedAt: new Date().toISOString(),
     };
 
