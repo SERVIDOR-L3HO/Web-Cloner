@@ -33,5 +33,13 @@ export interface InspectResult {
   wordCount: number;
   byteSize: number;
   iframeSrcs: string[];
+  apiEndpoints: Array<{
+    url: string;
+    method: string;
+    source: string;
+    status: number | null;
+    iframeSrcs: string[];
+    responsePreview: string;
+  }>;
   inspectedAt: string;
 }

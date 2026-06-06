@@ -6,7 +6,7 @@ import { useInspectUrl, useFetchResource } from "@workspace/api-client-react";
 import {
   Search, Terminal, AlertTriangle, Code, Globe, FileCode2,
   FileJson, Image as ImageIcon, Link as LinkIcon, FormInput,
-  ExternalLink, ShieldCheck, Cpu, ChevronRight, MonitorPlay,
+  ExternalLink, ShieldCheck, Cpu, ChevronRight, MonitorPlay, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -140,7 +140,7 @@ export default function Home() {
         {/* Loading skeleton */}
         {isLoading && (
           <div className="w-full max-w-2xl mx-auto space-y-2 py-8">
-            {["Resolviendo DNS...", "Estableciendo conexión...", "Descargando HTML...", "Analizando estructura...", "Detectando tecnologías..."].map((msg, i) => (
+            {["Resolviendo DNS...", "Estableciendo conexión...", "Descargando HTML...", "Analizando iframes y servidores...", "Escaneando bundles JS...", "Probando endpoints de API...", "Detectando tecnologías..."].map((msg, i) => (
               <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse" style={{ animationDelay: `${i * 200}ms` }}>
                 <ChevronRight className="w-3 h-3 text-primary" />
                 {msg}
@@ -178,6 +178,7 @@ export default function Home() {
                 {[
                   { value: "tech", label: `techs (${results.technologies.length})` },
                   { value: "iframes", label: `iframes (${results.iframeSrcs?.length ?? 0})` },
+                  { value: "api", label: `api (${results.apiEndpoints?.length ?? 0})` },
                   { value: "html", label: "html" },
                   { value: "headers", label: `headers (${results.responseHeaders.length})` },
                   { value: "meta", label: `meta (${results.metaTags.length})` },
@@ -239,6 +240,61 @@ export default function Home() {
                             `\n};`}
                         </CodeBlock>
                       </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* API ENDPOINTS */}
+                <TabsContent value="api" className="mt-0 p-4">
+                  <CodeComment text={`// internal API endpoints discovered (${results.apiEndpoints?.length ?? 0}) — scanned inline scripts + JS bundles`} />
+                  {!results.apiEndpoints || results.apiEndpoints.length === 0 ? (
+                    <EmptyState msg="// no API endpoints found in this page's scripts" />
+                  ) : (
+                    <div className="mt-3 space-y-3">
+                      {results.apiEndpoints.map((ep, i) => {
+                        const hasIframes = ep.iframeSrcs.length > 0;
+                        const statusColor = ep.status === 200
+                          ? "text-green-400 border-green-400/40"
+                          : ep.status && ep.status < 500
+                          ? "text-yellow-400 border-yellow-400/40"
+                          : "text-red-400 border-red-400/40";
+                        return (
+                          <div key={i} className={`border ${hasIframes ? "border-primary/50 bg-primary/5" : "border-border/30 bg-black/30"} p-3`}>
+                            <div className="flex items-start gap-2 flex-wrap mb-2">
+                              <Zap className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${hasIframes ? "text-primary" : "text-muted-foreground"}`} />
+                              <span className="text-[10px] border border-border/40 text-muted-foreground px-1.5 py-0.5">{ep.method}</span>
+                              {ep.status !== null && (
+                                <span className={`text-[10px] border px-1.5 py-0.5 ${statusColor}`}>{ep.status}</span>
+                              )}
+                              {hasIframes && (
+                                <span className="text-[10px] border border-primary/40 text-primary px-1.5 py-0.5">
+                                  ✓ {ep.iframeSrcs.length} iframe{ep.iframeSrcs.length > 1 ? "s" : ""} found
+                                </span>
+                              )}
+                              <span className="text-[10px] text-muted-foreground"># {ep.source}</span>
+                            </div>
+                            <div className="text-[11px] text-green-300/80 break-all mb-2">{ep.url}</div>
+                            {hasIframes && (
+                              <div className="mt-2 space-y-1 border-t border-border/20 pt-2">
+                                {ep.iframeSrcs.map((src, j) => (
+                                  <div key={j} className="flex items-center gap-2">
+                                    <MonitorPlay className="w-3 h-3 text-primary shrink-0" />
+                                    <span className="text-[10px] text-green-300/70 break-all">{src}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {ep.responsePreview && !hasIframes && (
+                              <div className="mt-2 border-t border-border/20 pt-2">
+                                <div className="text-[10px] text-muted-foreground mb-1"># response preview</div>
+                                <pre className="text-[10px] text-green-300/50 overflow-x-auto whitespace-pre-wrap break-all leading-relaxed max-h-20 overflow-y-hidden">
+                                  {ep.responsePreview}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </TabsContent>
