@@ -51,7 +51,7 @@ export default function Home() {
   const isError = inspectMutation.isError;
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center bg-background text-foreground font-mono p-4 md:p-8 selection:bg-primary selection:text-primary-foreground">
+    <div className="min-h-screen w-full flex flex-col items-center bg-background text-foreground font-mono p-4 md:p-8 selection:bg-primary selection:text-primary-foreground" translate="no">
       <div className="w-full max-w-6xl space-y-8">
         
         <header className="flex flex-col items-center justify-center space-y-4 pt-12 pb-8 border-b border-border/50">
@@ -146,7 +146,7 @@ export default function Home() {
 
                 <TabsContent value="html" className="mt-0">
                   <ScrollArea className="h-[600px] w-full border border-border bg-black/50 p-4">
-                    <pre className="text-xs font-mono text-muted-foreground">
+                    <pre className="text-xs font-mono text-muted-foreground" translate="no">
                       <code>{results.html}</code>
                     </pre>
                   </ScrollArea>
@@ -371,7 +371,7 @@ export default function Home() {
               </div>
             )}
             <ScrollArea className="h-full w-full p-4 bg-black/90">
-              <pre className="text-xs font-mono text-muted-foreground leading-relaxed">
+              <pre className="text-xs font-mono text-muted-foreground leading-relaxed" translate="no">
                 <code>{selectedResource?.content || fetchResourceMutation.error?.error || "Empty response"}</code>
               </pre>
             </ScrollArea>
