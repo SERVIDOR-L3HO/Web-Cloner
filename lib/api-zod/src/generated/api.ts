@@ -31,6 +31,13 @@ export const InspectUrlResponse = zod.object({
   "statusCode": zod.number(),
   "html": zod.string().describe('Raw HTML of the page'),
   "title": zod.string(),
+  "technologies": zod.array(zod.object({
+  "name": zod.string().describe('Technology name (e.g. React, WordPress, nginx)'),
+  "category": zod.string().describe('Category (e.g. Framework, CMS, Server, Library, Analytics)'),
+  "version": zod.string().nullish().describe('Detected version if available'),
+  "confidence": zod.enum(['high', 'medium', 'low']),
+  "evidence": zod.string().describe('What triggered the detection (e.g. header X-Powered-By, script src pattern)')
+})).describe('Detected technologies, frameworks, CMS, and libraries'),
   "responseHeaders": zod.array(zod.object({
   "name": zod.string(),
   "value": zod.string()

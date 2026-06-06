@@ -110,7 +110,7 @@ components:
 
     InspectResult:
       type: object
-      required: [url, finalUrl, statusCode, html, title, responseHeaders, metaTags, cssLinks, jsScripts, images, links, forms, cookies, wordCount, byteSize, inspectedAt]
+      required: [url, finalUrl, statusCode, html, title, responseHeaders, metaTags, cssLinks, jsScripts, images, links, forms, cookies, wordCount, byteSize, inspectedAt, technologies]
       properties:
         url:
           type: string
@@ -124,6 +124,11 @@ components:
           description: Raw HTML of the page
         title:
           type: string
+        technologies:
+          type: array
+          items:
+            $ref: "#/components/schemas/TechDetection"
+          description: Detected technologies, frameworks, CMS, and libraries
         responseHeaders:
           type: array
           items:
@@ -242,6 +247,26 @@ components:
           type: string
         contentType:
           type: string
+
+    TechDetection:
+      type: object
+      required: [name, category, confidence, evidence]
+      properties:
+        name:
+          type: string
+          description: Technology name (e.g. React, WordPress, nginx)
+        category:
+          type: string
+          description: Category (e.g. Framework, CMS, Server, Library, Analytics)
+        version:
+          type: ["string", "null"]
+          description: Detected version if available
+        confidence:
+          type: string
+          enum: [high, medium, low]
+        evidence:
+          type: string
+          description: What triggered the detection (e.g. header X-Powered-By, script src pattern)
 
     ErrorResponse:
       type: object

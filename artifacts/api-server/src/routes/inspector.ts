@@ -1,6 +1,7 @@
 import { Router } from "express";
 import * as cheerio from "cheerio";
 import { InspectUrlBody, FetchResourceBody } from "@workspace/api-zod";
+import { detectTechnologies } from "../lib/tech-detector";
 
 const router = Router();
 
@@ -157,12 +158,21 @@ router.post("/inspect", async (req, res) => {
     const textContent = $("body").text().replace(/\s+/g, " ").trim();
     const wordCount = textContent ? textContent.split(/\s+/).length : 0;
 
+    const technologies = detectTechnologies({
+      html,
+      headers: responseHeaders,
+      scriptSrcs: jsScripts.map((s) => s.url),
+      cssHrefs: cssLinks.map((c) => c.url),
+      metaTags,
+    });
+
     const result = {
       url: targetUrl,
       finalUrl,
       statusCode: response.status,
       html,
       title,
+      technologies,
       responseHeaders,
       metaTags,
       cssLinks,

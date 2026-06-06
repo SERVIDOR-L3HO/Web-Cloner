@@ -18,3 +18,5 @@ export * from './metaTag';
 export * from './pageLink';
 export * from './resourceInput';
 export * from './resourceResult';
+export * from './techDetection';
+export * from './techDetectionConfidence';

@@ -10,6 +10,7 @@ import type { FormInfo } from './formInfo';
 import type { HeaderEntry } from './headerEntry';
 import type { MetaTag } from './metaTag';
 import type { PageLink } from './pageLink';
+import type { TechDetection } from './techDetection';
 
 export interface InspectResult {
   url: string;
@@ -19,6 +20,8 @@ export interface InspectResult {
   /** Raw HTML of the page */
   html: string;
   title: string;
+  /** Detected technologies, frameworks, CMS, and libraries */
+  technologies: TechDetection[];
   responseHeaders: HeaderEntry[];
   metaTags: MetaTag[];
   cssLinks: AssetLink[];

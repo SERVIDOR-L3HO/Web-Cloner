@@ -14,6 +14,30 @@ export interface InspectInput {
   url: string;
 }
 
+export type TechDetectionConfidence = typeof TechDetectionConfidence[keyof typeof TechDetectionConfidence];
+
+
+export const TechDetectionConfidence = {
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
+} as const;
+
+export interface TechDetection {
+  /** Technology name (e.g. React, WordPress, nginx) */
+  name: string;
+  /** Category (e.g. Framework, CMS, Server, Library, Analytics) */
+  category: string;
+  /**
+     * Detected version if available
+     * @nullable
+     */
+  version?: string | null;
+  confidence: TechDetectionConfidence;
+  /** What triggered the detection (e.g. header X-Powered-By, script src pattern) */
+  evidence: string;
+}
+
 export interface HeaderEntry {
   name: string;
   value: string;
@@ -56,6 +80,8 @@ export interface InspectResult {
   /** Raw HTML of the page */
   html: string;
   title: string;
+  /** Detected technologies, frameworks, CMS, and libraries */
+  technologies: TechDetection[];
   responseHeaders: HeaderEntry[];
   metaTags: MetaTag[];
   cssLinks: AssetLink[];
