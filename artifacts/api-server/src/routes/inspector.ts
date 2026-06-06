@@ -201,7 +201,7 @@ router.post("/inspect", async (req, res) => {
     // Many React/Next.js sites load iframes dynamically, so they won't appear
     // as <iframe> tags in static HTML — but the URLs are in the page data.
     const embedUrlPattern = /https?:\/\/[^\s"'\\]+\/(?:embed|player|e|tv)\/[^\s"'\\<>]{4,}/gi;
-    const knownVideoHosts = /youtube|vimeo|dood|streamtape|filemoon|vidmoly|streamwish|uqload|ok\.ru|dailymotion|kwik|mp4upload|sibnet|mixdrop|fembed|emturbovid|vidhide|voe\.sx|upstream|speedvid|gdriveplayer|vidapi/i;
+    const knownVideoHosts = /youtube|vimeo|dood|streamtape|filemoon|vidmoly|streamwish|uqload|ok\.ru|dailymotion|kwik|mp4upload|sibnet|mixdrop|fembed|emturbovid|vidhide|voe\.sx|upstream|speedvid|gdriveplayer|vidapi|unlimplay|filemoon|streamhide|vidsrc|2embed|multiembed/i;
 
     function extractEmbedUrls(text: string, onlyKnown = false): string[] {
       // Decode HTML entities in the text first so &amp; URLs are found correctly
@@ -399,11 +399,19 @@ router.post("/inspect", async (req, res) => {
     }
 
     // 2. Fetch key JS bundles and scan them for API patterns + embed URLs
-    // Scan up to 5 bundles: prioritize named ones, then take others
+    // Turbopack bundles (e.g. peliskal) have hashed names — scan more of them.
+    // Sort by size (largest first) since page-specific code lives in larger bundles.
     const BUNDLE_PRIORITY = /\b(_app|main|index|chunk|pages[/\\]|runtime|app-|layout)\b/i;
     const priorityBundles = jsScripts.filter((s) => BUNDLE_PRIORITY.test(s.url)).slice(0, 3).map((s) => s.url);
-    const otherBundles = jsScripts.filter((s) => !BUNDLE_PRIORITY.test(s.url)).slice(0, 2).map((s) => s.url);
+    const otherBundles = jsScripts.filter((s) => !BUNDLE_PRIORITY.test(s.url)).slice(0, 5).map((s) => s.url);
     const candidateBundles = [...new Set([...priorityBundles, ...otherBundles])];
+
+    // Track which player domains appear in bundle code (used for URL reconstruction)
+    const bundlePlayerDomains = new Set<string>();
+    const KNOWN_PLAYER_DOMAINS = [
+      "vidapi.ru", "unlimplay.com", "vidsrc.to", "vidsrc.me", "2embed.org",
+      "multiembed.mov", "filemoon.sx", "streamhide.com", "dood.la", "streamtape.com",
+    ];
 
     const bundleApiPaths: Array<{ path: string; method: string; source: string }> = [];
     await Promise.all(
@@ -419,6 +427,10 @@ router.post("/inspect", async (req, res) => {
             if (r.ok) {
               const code = await r.text();
               const bundleName = bundleUrl.split("/").pop() ?? bundleUrl;
+              // Track which player domains are referenced in this bundle
+              for (const domain of KNOWN_PLAYER_DOMAINS) {
+                if (code.includes(domain)) bundlePlayerDomains.add(domain);
+              }
               for (const ap of extractApiPaths(code)) {
                 if (VIDEO_HINT.test(ap.path)) {
                   bundleApiPaths.push({ ...ap, source: `bundle: ${bundleName}` });
@@ -434,6 +446,63 @@ router.post("/inspect", async (req, res) => {
         } catch { /* Non-fatal */ }
       })
     );
+
+    // ── Dynamic URL Reconstruction ──────────────────────────────────────────
+    // Streaming sites like peliskal construct ALL player URLs client-side from
+    // content IDs in __NEXT_DATA__. We reconstruct those URLs by combining the
+    // player domains found in JS bundles with the content IDs from __NEXT_DATA__.
+    if (nextDataEl) {
+      try {
+        const ndParsed = JSON.parse(nextDataEl);
+        const item = ndParsed?.props?.pageProps?.item;
+        if (item && (item.id_imdb || item.id_tmdb)) {
+          // Extract season/episode from URL path (e.g. /seeContent/slug/1/1)
+          const urlPathSegs = parsedFinalUrl.pathname.split("/").filter(Boolean);
+          const numericSegs = urlPathSegs.filter((s: string) => /^\d+$/.test(s));
+          const season = numericSegs[numericSegs.length - 2] || "1";
+          const episode = numericSegs[numericSegs.length - 1] || "1";
+
+          let imdbId = String(item.id_imdb || "");
+          if (imdbId && !imdbId.startsWith("tt")) imdbId = `tt${imdbId}`;
+          const tmdbId = String(item.id_tmdb || "");
+          const contentType = item.type === "movie" ? "movie" : "tv";
+          const episodePath = contentType === "tv" ? `/${season}/${episode}` : "";
+          const baseParams = "sub=es&lang=es&audio=es&muted=0&autoplay=1";
+
+          // vidapi.ru — IMDB ID, e.g. peliskal Servidor 1
+          if (imdbId || tmdbId) {
+            const id = imdbId || tmdbId;
+            addIframeSrc(
+              `https://vidapi.ru/embed/${contentType}/${id}${episodePath}?${baseParams}`
+            );
+          }
+          // unlimplay.com — TMDB ID, e.g. peliskal Servidor 2
+          if (tmdbId) {
+            addIframeSrc(
+              `https://unlimplay.com/play/embed/${contentType}/${tmdbId}${episodePath}?${baseParams}`
+            );
+          }
+          // vidsrc.to — common alternative player using IMDB/TMDB
+          if (bundlePlayerDomains.has("vidsrc.to")) {
+            const id = imdbId || tmdbId;
+            addIframeSrc(`https://vidsrc.to/embed/${contentType}/${id}${episodePath}`);
+          }
+          // 2embed.org — another common pattern
+          if (bundlePlayerDomains.has("2embed.org")) {
+            const id = imdbId || tmdbId;
+            addIframeSrc(`https://www.2embed.cc/embedtv/${id}&s=${season}&e=${episode}`);
+          }
+          // multiembed.mov
+          if (bundlePlayerDomains.has("multiembed.mov")) {
+            addIframeSrc(
+              `https://multiembed.mov/directstream.php?video_id=${tmdbId || imdbId}&tmdb=1&s=${season}&e=${episode}`
+            );
+          }
+        }
+      } catch {
+        // Non-fatal — dynamic reconstruction is best-effort
+      }
+    }
 
     // 3. Smart common-pattern probing based on the page URL segments
     // This catches sites where API paths mirror the page path structure.
