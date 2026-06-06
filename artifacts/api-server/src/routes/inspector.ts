@@ -158,12 +158,23 @@ router.post("/inspect", async (req, res) => {
     const textContent = $("body").text().replace(/\s+/g, " ").trim();
     const wordCount = textContent ? textContent.split(/\s+/).length : 0;
 
+    const iframeSrcs: string[] = [];
+    $("iframe[src]").each((_, el) => {
+      const src = $(el).attr("src");
+      if (src) iframeSrcs.push(resolveUrl(finalUrl, src));
+    });
+    $("iframe[data-src]").each((_, el) => {
+      const src = $(el).attr("data-src");
+      if (src) iframeSrcs.push(resolveUrl(finalUrl, src));
+    });
+
     const technologies = detectTechnologies({
       html,
       headers: responseHeaders,
       scriptSrcs: jsScripts.map((s) => s.url),
       cssHrefs: cssLinks.map((c) => c.url),
       metaTags,
+      iframeSrcs,
     });
 
     const result = {

@@ -12,6 +12,7 @@ interface DetectionInput {
   scriptSrcs: string[];
   cssHrefs: string[];
   metaTags: Array<{ name: string; content: string }>;
+  iframeSrcs: string[];
 }
 
 type Rule = {
@@ -425,6 +426,357 @@ const rules: Rule[] = [
     check: ({ html, scriptSrcs }) => {
       if (scriptSrcs.some((s) => s.includes("challenges.cloudflare.com")) || html.includes("cf-turnstile"))
         return { matched: true, version: null, evidence: "Script/HTML: Cloudflare Turnstile" };
+      return { matched: false, evidence: "" };
+    },
+  },
+
+  // ── Video Players ─────────────────────────────────────────────────────────
+  {
+    name: "YouTube",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs, scriptSrcs }) => {
+      const src = iframeSrcs.find((s) => /youtube\.com\/embed|youtu\.be/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (scriptSrcs.some((s) => s.includes("youtube.com/iframe_api")))
+        return { matched: true, version: null, evidence: "Script: YouTube IFrame API" };
+      if (html.includes("youtube.com/embed") || html.includes("youtu.be"))
+        return { matched: true, version: null, evidence: "HTML: YouTube embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Vimeo",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs, scriptSrcs }) => {
+      const src = iframeSrcs.find((s) => /vimeo\.com\/video|player\.vimeo\.com/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (scriptSrcs.some((s) => s.includes("player.vimeo.com")))
+        return { matched: true, version: null, evidence: "Script: Vimeo player" };
+      if (html.includes("vimeo.com/video") || html.includes("player.vimeo.com"))
+        return { matched: true, version: null, evidence: "HTML: Vimeo embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "DoodStream",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /dood\.(re|watch|to|pm|stream|so|la|ws|sh|yt|cx|li|wf)|doodstream\.com/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/dood\.(re|watch|to|pm|stream|so|la|ws|sh|yt|cx|li|wf)|doodstream\.com/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: DoodStream embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Streamtape",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /streamtape\.(com|net|to|cc|xyz)/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/streamtape\.(com|net|to|cc|xyz)/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Streamtape embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Filemoon",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /filemoon\.(sx|to|in|mobi)|moonplayer\.one/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/filemoon\.(sx|to|in|mobi)|moonplayer\.one/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Filemoon embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Vidmoly",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /vidmoly\.(to|me|net)/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/vidmoly\.(to|me|net)/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Vidmoly embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Streamwish",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /streamwish\.(to|com)|wishembed\.pro/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/streamwish\.(to|com)|wishembed\.pro/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Streamwish embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Uqload",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /uqload\.(com|co|to)/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/uqload\.(com|co|to)/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Uqload embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Okru / OK.ru",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /ok\.ru\/videoembed|odnoklassniki\.ru\/videoembed/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/ok\.ru\/videoembed|odnoklassniki\.ru/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: OK.ru embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Dailymotion",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /dailymotion\.com\/embed/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (html.includes("dailymotion.com/embed"))
+        return { matched: true, version: null, evidence: "HTML: Dailymotion embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Kwik",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /kwik\.(cx|si|to)/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/kwik\.(cx|si|to)/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Kwik embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Mp4upload",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /mp4upload\.com/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/mp4upload\.com/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Mp4upload embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Sibnet",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /video\.sibnet\.ru/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/video\.sibnet\.ru/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Sibnet embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "JW Player",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, scriptSrcs }) => {
+      if (scriptSrcs.some((s) => /jwplayer|jwpsrv|jwpcdn/i.test(s)))
+        return { matched: true, version: null, evidence: "Script: JW Player CDN" };
+      if (html.includes("jwplayer(") || html.includes("jwplayer.key"))
+        return { matched: true, version: null, evidence: "HTML: JW Player init code" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Video.js",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, scriptSrcs, cssHrefs }) => {
+      if (scriptSrcs.some((s) => /video\.js|videojs/i.test(s)) || cssHrefs.some((c) => /video\.js|videojs/i.test(c)))
+        return { matched: true, version: null, evidence: "Script/CSS: Video.js" };
+      if (html.includes("videojs(") || html.includes('data-setup="{'))
+        return { matched: true, version: null, evidence: "HTML: Video.js init" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Plyr",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, scriptSrcs, cssHrefs }) => {
+      if (scriptSrcs.some((s) => /plyr(\.min)?\.js/i.test(s)) || cssHrefs.some((c) => /plyr(\.min)?\.css/i.test(c)))
+        return { matched: true, version: null, evidence: "Script/CSS: Plyr player" };
+      if (html.includes("new Plyr(") || html.includes("data-plyr"))
+        return { matched: true, version: null, evidence: "HTML: Plyr init" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "HLS.js",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, scriptSrcs }) => {
+      if (scriptSrcs.some((s) => /hls(\.min)?\.js/i.test(s)))
+        return { matched: true, version: null, evidence: "Script: HLS.js" };
+      if (html.includes("Hls.isSupported()") || html.includes("new Hls("))
+        return { matched: true, version: null, evidence: "HTML: HLS.js init" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Shaka Player",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, scriptSrcs }) => {
+      if (scriptSrcs.some((s) => /shaka-player/i.test(s)))
+        return { matched: true, version: null, evidence: "Script: Shaka Player" };
+      if (html.includes("shaka.Player") || html.includes("shaka.polyfill"))
+        return { matched: true, version: null, evidence: "HTML: Shaka Player init" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "VidAPI",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /vidapi\.ru|vidapi\.to/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/vidapi\.ru|vidapi\.to/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: VidAPI embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Mixdrop",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /mixdrop\.(co|to|ch|bz|gl)/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/mixdrop\.(co|to|ch|bz|gl)/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Mixdrop embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Fembed / Fecdn",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /fembed\.com|fecdn\.com|fviplayer\.club/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/fembed\.com|fecdn\.com|fviplayer\.club/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Fembed embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Emturbovid",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /emturbovid\.com|turbovid\./i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/emturbovid\.com|turbovid\./i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Emturbovid embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Vidhide",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /vidhide\.(com|at|to)/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/vidhide\.(com|at|to)/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Vidhide embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Voe.sx",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /voe\.sx|voe-unblock/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/voe\.sx|voe-unblock/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Voe.sx embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Upstream",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /upstream\.to/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/upstream\.to/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Upstream embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Speedvid",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /speedvid\.(net|to)/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/speedvid\.(net|to)/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Speedvid embed URL" };
+      return { matched: false, evidence: "" };
+    },
+  },
+  {
+    name: "Gdriveplayer",
+    category: "Video Player",
+    confidence: "high",
+    check: ({ html, iframeSrcs }) => {
+      const src = iframeSrcs.find((s) => /gdriveplayer\.|drive\.google\.com\/file/i.test(s));
+      if (src) return { matched: true, version: null, evidence: `iframe src: ${src}` };
+      if (/gdriveplayer\.|drive\.google\.com\/file.*preview/i.test(html))
+        return { matched: true, version: null, evidence: "HTML: Google Drive video embed" };
+      return { matched: false, evidence: "" };
+    },
+  },
+
+  // ── Catch-all: unknown embedded video domains ─────────────────────────────
+  {
+    name: "Unknown Video Embed",
+    category: "Video Player",
+    confidence: "low",
+    check: ({ iframeSrcs, html }) => {
+      const videoEmbedPatterns = /\/embed\/|\/player\/|\/watch\?v=|\/video\/[a-z0-9]{6,}/i;
+      const knownDomains = /youtube|vimeo|dood|streamtape|filemoon|vidmoly|streamwish|uqload|ok\.ru|dailymotion|kwik|mp4upload|sibnet|mixdrop|fembed|emturbovid|vidhide|voe\.sx|upstream|speedvid|gdriveplayer|vidapi/i;
+      const unknown = iframeSrcs.filter((s) => videoEmbedPatterns.test(s) && !knownDomains.test(s));
+      if (unknown.length > 0) {
+        try {
+          const host = new URL(unknown[0]).hostname;
+          return { matched: true, version: null, evidence: `iframe embed from unknown host: ${host}` };
+        } catch {
+          return { matched: true, version: null, evidence: `iframe embed: ${unknown[0].slice(0, 80)}` };
+        }
+      }
       return { matched: false, evidence: "" };
     },
   },
